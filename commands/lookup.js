@@ -74,37 +74,82 @@ module.exports = {
                 const wish = await funGetWish(chara)
                 
                 let wishlister = 0
-                let urlStr = "https://media.discordapp.net/attachments/858602944752254986/858603018195173376/unknown.png"
-                if (media) urlStr = media.url
+                let media_url = "https://media.discordapp.net/attachments/858602944752254986/858603018195173376/unknown.png"
+                if (media) media_url = media.url
                 if (wish) wishlister = wish.length
-                let rare = chara.isSpecial? rare = '**RARE CARD**' : ''
+                let rare = chara.isSpecial? rare = '\n\n**RARE CHARACTER**' : ''
 
-                let userinfo = collection? `✅ You owned this character` : `❌ You don't own this character`
+                let userinfo = collection? `✅ You owned this character` : ''
                 if (collection)
                 {
                     userinfo += `\n\nTotal owned・**${collection.amount}**`
                     userinfo += `\nEdition・**${collection.edition}**`
                     if (collection.price > 0) userinfo += `\nPrice・**${collection.price}** :coin:`
                 }
-                const embed = {
+                media_url = `${media_url}?width=193&height=300`.replace('`', '')
+                let footer = `Lookup Edition・${media? data.edition : 0}${collection? ' | ✅ Owned' : ''}`
+                let color = 3701706
+                const embed1 = {
                     "embed": {
-                        "title": `${chara.name}`,
-                        "fields": [
-                            {
-                                "name": "User Information",
-                                "value": userinfo
-                            }
-                        ],
-                        "color": 3701706,
+                        "title": chara.name,
+                        "description": `${series.name}${rare}`,
+                        "color": color,
                         "footer": {
-                            "text": `Character ID・${data.id_character.toUpperCase()} | Lookup Edition・${media? data.edition : 0}`
+                            "text": footer
                         },
                         "image": {
-                            "url": `${urlStr}?width=193&height=300`.replace('`', '')
+                            "url": media_url
                         }
                     }
                 }
-                message.channel.send(embed)
+                const embed2 = {
+                    "embed": {
+                        "footer": {
+                            "text": footer
+                          },
+                        "thumbnail": {
+                            "url": media_url
+                        },
+                        "color": color,
+                        "fields": [
+                        {
+                            "name": "Character Info",
+                            "value": `Name・**${chara.name}**\nSeries・**${series.name}**\nWishlisted・**${wishlister}**\n\n`
+                        },
+                        {
+                            "name": "Owner Info",
+                            "value": `Profile・**<@${message.author.id}>**\nTotal owned・**${collection? collection.amount : 0}**\nEdition owned・**${collection? collection.edition : 0}**\nPrice・**${collection? collection.price : 0}**\n`
+                        }
+                        ]
+                    }
+                }
+                const msg = await message.channel.send(embed1)
+                if (collection)
+                {
+                    await msg.react('⬅')
+                    await msg.react('➡')
+
+                    const filter = (reaction, user) => {
+                        return reaction.emoji.name == "⬅" || reaction.emoji.name == "➡" && user.id == message.author.id
+                    }
+
+                    let pos = 1
+                    let cur = 1
+                    const collector = msg.createReactionCollector(filter, {time: 15000})
+                    collector.on('collect', (reaction, user) => {
+                        if (reaction.emoji.name == "⬅" ) pos--
+                        else if (reaction.emoji.name == "➡") pos++
+                        if (pos > 2) pos = 2
+                        else if (pos < 1) pos = 1
+
+                        if (cur == pos) return
+                        else
+                        {
+                            msg.edit(pos == 1? embed1 : embed2)
+                            cur = pos
+                        }
+                    })
+                }
             }
             else message.channel.send(messageError(`The character id isn't valid. Please try another`))
         }
